@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="640" viewBox="0 0 1200 640" role="img" aria-label="Dashboard layout overview">
+  <rect width="1200" height="640" fill="#111827"/>
+  <rect x="20" y="20" width="1160" height="90" rx="10" fill="#1f2937" stroke="#374151"/>
+  <text x="40" y="52" fill="#e5e7eb" font-family="Segoe UI, Arial" font-size="22" font-weight="600">Project Graph</text>
+  <text x="40" y="82" fill="#9ca3af" font-family="Segoe UI, Arial" font-size="14">Top KPIs: Workspace • Total Files • Total Size • Main File</text>
+
+  <rect x="20" y="130" width="560" height="240" rx="10" fill="#1f2937" stroke="#374151"/>
+  <text x="40" y="160" fill="#e5e7eb" font-family="Segoe UI, Arial" font-size="18" font-weight="600">Folder & Program Structure</text>
+  <text x="40" y="188" fill="#9ca3af" font-family="Segoe UI, Arial" font-size="13">Tree view of files and folders inside workspace root</text>
+
+  <rect x="600" y="130" width="580" height="240" rx="10" fill="#1f2937" stroke="#374151"/>
+  <text x="620" y="160" fill="#e5e7eb" font-family="Segoe UI, Arial" font-size="18" font-weight="600">Dependency Connections (Graph)</text>
+  <line x1="640" y1="220" x2="760" y2="180" stroke="#60a5fa" stroke-width="2"/>
+  <line x1="760" y1="180" x2="900" y2="240" stroke="#60a5fa" stroke-width="2"/>
+  <line x1="900" y1="240" x2="1060" y2="190" stroke="#60a5fa" stroke-width="2"/>
+  <line x1="700" y1="280" x2="980" y2="300" stroke="#9ca3af" stroke-width="1" stroke-dasharray="4 4" opacity="0.6"/>
+  <circle cx="640" cy="220" r="6" fill="#86efac"/>
+  <circle cx="760" cy="180" r="8" fill="#86efac"/>
+  <circle cx="900" cy="240" r="6" fill="#86efac"/>
+  <circle cx="1060" cy="190" r="7" fill="#86efac"/>
+
+  <rect x="20" y="390" width="760" height="230" rx="10" fill="#1f2937" stroke="#374151"/>
+  <text x="40" y="420" fill="#e5e7eb" font-family="Segoe UI, Arial" font-size="18" font-weight="600">Program Size (All Files)</text>
+  <text x="40" y="448" fill="#9ca3af" font-family="Segoe UI, Arial" font-size="13">Sortable table with size, imports, and reverse imports</text>
+
+  <rect x="800" y="390" width="380" height="230" rx="10" fill="#1f2937" stroke="#374151"/>
+  <text x="820" y="420" fill="#e5e7eb" font-family="Segoe UI, Arial" font-size="18" font-weight="600">Critical Files</text>
+  <text x="820" y="448" fill="#9ca3af" font-family="Segoe UI, Arial" font-size="13">Top impact files based on relevance scoring</text>
+</svg>

@@ -1,0 +1,106 @@
+{
+  "name": "project-graph",
+  "displayName": "Project Graph",
+  "description": "Architecture visualizer, project-size analytics, and critical-file insights for VS Code workspaces.",
+  "version": "0.0.1",
+  "publisher": "your-publisher-name",
+  "icon": "icons/icon-1.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GibMalFeuerzeugBitte/project-graph.git"
+  },
+  "homepage": "https://github.com/GibMalFeuerzeugBitte/project-graph#readme",
+  "bugs": {
+    "url": "https://github.com/GibMalFeuerzeugBitte/project-graph/issues"
+  },
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "projectGraph.openDashboard",
+        "title": "Project Graph: Open"
+      },
+      {
+        "command": "projectGraph.refreshDashboard",
+        "title": "Project Graph: Refresh"
+      }
+    ],
+    "configuration": {
+      "title": "Project Graph",
+      "properties": {
+        "projectGraph.mainFile": {
+          "type": "string",
+          "default": "",
+          "description": "Relative path to the main file used for prominent size display (e.g. src/index.ts)."
+        },
+        "projectGraph.includeExtensions": {
+          "type": "array",
+          "default": [
+            ".ts",
+            ".tsx",
+            ".js",
+            ".jsx",
+            ".mjs",
+            ".cjs",
+            ".py",
+            ".pyw",
+            ".json",
+            ".jsonc",
+            ".html",
+            ".htm",
+            ".css",
+            ".scss",
+            ".sql",
+            ".db",
+            ".sqlite",
+            ".yaml",
+            ".yml",
+            ".xml",
+            ".vsix",
+            ".exe",
+            ".java",
+            ".cs",
+            ".go",
+            ".rs",
+            ".php",
+            ".rb"
+          ],
+          "description": "File extensions included in dependency and size analysis."
+        },
+        "projectGraph.excludeFolders": {
+          "type": "array",
+          "default": [
+            "venv",
+            ".venv",
+            "env",
+            "node_modules",
+            "build",
+            "assets",
+            "__pycache__",
+            ".git",
+            ".vscode",
+            "out",
+            "site-packages"
+          ],
+          "description": "Folder names to ignore from analysis to keep focus on important project files."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.5",
+    "@types/vscode": "^1.95.0",
+    "typescript": "^5.6.3"
+  }
+}

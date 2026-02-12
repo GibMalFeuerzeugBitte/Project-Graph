@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420" role="img" aria-label="Analysis flow">
+  <rect width="1200" height="420" fill="#111827"/>
+
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#93c5fd"/>
+    </marker>
+  </defs>
+
+  <rect x="40" y="140" width="190" height="100" rx="10" fill="#1f2937" stroke="#374151"/>
+  <text x="58" y="180" fill="#e5e7eb" font-family="Segoe UI, Arial" font-size="16" font-weight="600">Workspace Scan</text>
+  <text x="58" y="205" fill="#9ca3af" font-family="Segoe UI, Arial" font-size="12">All files in root</text>
+
+  <rect x="280" y="70" width="220" height="100" rx="10" fill="#1f2937" stroke="#374151"/>
+  <text x="298" y="110" fill="#e5e7eb" font-family="Segoe UI, Arial" font-size="16" font-weight="600">Focus Filtering</text>
+  <text x="298" y="135" fill="#9ca3af" font-family="Segoe UI, Arial" font-size="12">excludeFolders + extensions</text>
+
+  <rect x="280" y="210" width="220" height="100" rx="10" fill="#1f2937" stroke="#374151"/>
+  <text x="298" y="250" fill="#e5e7eb" font-family="Segoe UI, Arial" font-size="16" font-weight="600">Dependency Parse</text>
+  <text x="298" y="275" fill="#9ca3af" font-family="Segoe UI, Arial" font-size="12">imports / importedBy graph</text>
+
+  <rect x="560" y="70" width="260" height="100" rx="10" fill="#1f2937" stroke="#374151"/>
+  <text x="578" y="110" fill="#e5e7eb" font-family="Segoe UI, Arial" font-size="16" font-weight="600">Main File Detection</text>
+  <text x="578" y="135" fill="#9ca3af" font-family="Segoe UI, Arial" font-size="12">heuristics + optional override</text>
+
+  <rect x="560" y="210" width="260" height="100" rx="10" fill="#1f2937" stroke="#374151"/>
+  <text x="578" y="250" fill="#e5e7eb" font-family="Segoe UI, Arial" font-size="16" font-weight="600">Critical Ranking</text>
+  <text x="578" y="275" fill="#9ca3af" font-family="Segoe UI, Arial" font-size="12">connection impact + file relevance</text>
+
+  <rect x="880" y="140" width="280" height="100" rx="10" fill="#1f2937" stroke="#374151"/>
+  <text x="898" y="180" fill="#e5e7eb" font-family="Segoe UI, Arial" font-size="16" font-weight="600">Dashboard Render</text>
+  <text x="898" y="205" fill="#9ca3af" font-family="Segoe UI, Arial" font-size="12">tree + graph + size table + critical list</text>
+
+  <line x1="230" y1="190" x2="280" y2="120" stroke="#93c5fd" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="230" y1="190" x2="280" y2="260" stroke="#93c5fd" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="500" y1="120" x2="560" y2="120" stroke="#93c5fd" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="500" y1="260" x2="560" y2="260" stroke="#93c5fd" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="820" y1="120" x2="880" y2="190" stroke="#93c5fd" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="820" y1="260" x2="880" y2="190" stroke="#93c5fd" stroke-width="2" marker-end="url(#arrow)"/>
+</svg>
