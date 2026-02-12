@@ -2,9 +2,9 @@
   "name": "project-graph",
   "displayName": "Project Graph",
   "description": "Architecture visualizer, project-size analytics, and critical-file insights for VS Code workspaces.",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "publisher": "GibMalFeuerzeugBitte",
-  "icon": "icons/icon-1.png",
+  "icon": "icons/Icon-1.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/GibMalFeuerzeugBitte/project-graph.git"
