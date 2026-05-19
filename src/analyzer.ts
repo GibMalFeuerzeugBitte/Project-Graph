@@ -1,6 +1,6 @@
 import * as path from "node:path";
 import * as vscode from "vscode";
-import { DashboardData, FileRecord, FolderNode } from "./types";
+import { DashboardData, FileRecord, FolderNode, WorkspaceFolderSummary } from "./types";
 
 const DEFAULT_EXTENSIONS = new Set([
   ".ts",
@@ -93,17 +93,27 @@ function mainFilePriority(pathValue: string, extension: string): number {
     baseName === "main.html" ||
     baseName === "app.html" ||
     baseName === "main.sql" ||
-    baseName === "schema.sql"
+    baseName === "schema.sql" ||
+    baseName === "index.ts" ||
+    baseName === "index.js" ||
+    baseName === "index.tsx" ||
+    baseName === "main.ts" ||
+    baseName === "main.js" ||
+    baseName === "main.tsx" ||
+    baseName === "app.ts" ||
+    baseName === "app.js" ||
+    baseName === "app.tsx" ||
+    baseName === "__main__.py"
   ) {
     score += 35;
   }
 
   if (
-    lower.includes("/src/") ||
-    lower.includes("/core/") ||
-    lower.includes("/app/") ||
-    lower.includes("/extension/") ||
-    lower.includes("/database/")
+    lower.includes("src/") ||
+    lower.includes("core/") ||
+    lower.includes("app/") ||
+    lower.includes("extension/") ||
+    lower.includes("database/")
   ) {
     score += 10;
   }
@@ -275,16 +285,21 @@ function resolvePythonImport(
   return tryPaths(specifier);
 }
 
-export async function analyzeWorkspace(): Promise<DashboardData | undefined> {
-  const folder = vscode.workspace.workspaceFolders?.[0];
-  if (!folder) {
-    return undefined;
-  }
+interface FolderData {
+  folderName: string;
+  rootPath: string;
+  allRootFileCount: number;
+  allRootSizeBytes: number;
+  allFilePaths: string[];
+  fileRecords: FileRecord[];
+}
 
+async function analyzeSingleFolder(folder: vscode.WorkspaceFolder, prefix: string): Promise<FolderData> {
+  const rootPath = folder.uri.fsPath;
   const config = vscode.workspace.getConfiguration("projectGraph");
   const configuredExtensions = config.get<string[]>("includeExtensions", []);
   const configuredExcludedFolders = config.get<string[]>("excludeFolders", []);
-  const excludedFolders = new Set(configuredExcludedFolders.map((folderName) => folderName.toLowerCase()));
+  const excludedFolders = new Set(configuredExcludedFolders.map((f) => f.toLowerCase()));
   const activeExtensions = new Set(
     (configuredExtensions.length > 0 ? configuredExtensions : [...DEFAULT_EXTENSIONS]).map((ext) =>
       ext.startsWith(".") ? ext.toLowerCase() : `.${ext.toLowerCase()}`
@@ -294,10 +309,10 @@ export async function analyzeWorkspace(): Promise<DashboardData | undefined> {
     activeExtensions.add(extension);
   }
 
-  const allUris = await vscode.workspace.findFiles("**/*");
+  const pattern = new vscode.RelativePattern(folder, "**/*");
+  const allUris = await vscode.workspace.findFiles(pattern);
 
-  const rootPath = folder.uri.fsPath;
-  const allRootFilePaths: string[] = [];
+  let allRootFileCount = 0;
   let allRootSizeBytes = 0;
   const allFilePaths: string[] = [];
   const fileRecords: FileRecord[] = [];
@@ -309,22 +324,17 @@ export async function analyzeWorkspace(): Promise<DashboardData | undefined> {
     if (stat.type !== vscode.FileType.File) {
       continue;
     }
-
     const relativePath = toPosixRelative(rootPath, uri.fsPath);
-    allRootFilePaths.push(relativePath);
+    allRootFileCount++;
     allRootSizeBytes += stat.size;
-
     if (isExcludedPath(relativePath, excludedFolders)) {
       continue;
     }
-
     allFilePaths.push(relativePath);
-
     const extension = path.extname(uri.fsPath).toLowerCase();
     if (!activeExtensions.has(extension)) {
       continue;
     }
-
     const record: FileRecord = {
       path: relativePath,
       extension,
@@ -333,7 +343,6 @@ export async function analyzeWorkspace(): Promise<DashboardData | undefined> {
       imports: [],
       importedBy: []
     };
-
     fileRecords.push(record);
     byAbsoluteKey.set(pathKey(uri.fsPath), record);
     byRelativePath.set(relativePath, uri.fsPath);
@@ -344,24 +353,19 @@ export async function analyzeWorkspace(): Promise<DashboardData | undefined> {
     if (!absolutePath) {
       continue;
     }
-
     const content = Buffer.from(await vscode.workspace.fs.readFile(vscode.Uri.file(absolutePath))).toString("utf8");
     const specs = extractImports(content, record.extension);
-
     for (const specifier of specs) {
       let resolved: string | undefined;
-
       if (JS_TS_EXTENSIONS.includes(record.extension)) {
         resolved = resolveJsTsImport(absolutePath, specifier, rootPath, byAbsoluteKey);
       } else if (record.extension === ".py" || record.extension === ".pyw") {
         resolved = resolvePythonImport(absolutePath, specifier, rootPath, byAbsoluteKey);
       }
-
       if (resolved && resolved !== record.path) {
         record.imports.push(resolved);
       }
     }
-
     record.imports = [...new Set(record.imports)].sort((a, b) => a.localeCompare(b));
   }
 
@@ -373,16 +377,48 @@ export async function analyzeWorkspace(): Promise<DashboardData | undefined> {
       }
     }
   }
-
   for (const record of fileRecords) {
     record.importedBy = [...new Set(record.importedBy)].sort((a, b) => a.localeCompare(b));
   }
 
-  const analyzedSizeBytes = fileRecords.reduce((sum, item) => sum + item.sizeBytes, 0);
+  // Apply prefix for multi-root namespacing (after import resolution so relative paths resolve correctly)
+  if (prefix) {
+    for (const record of fileRecords) {
+      record.path = prefix + record.path;
+      record.imports = record.imports.map((p) => prefix + p);
+      record.importedBy = record.importedBy.map((p) => prefix + p);
+    }
+    for (let i = 0; i < allFilePaths.length; i++) {
+      allFilePaths[i] = prefix + allFilePaths[i];
+    }
+  }
+
+  return { folderName: folder.name, rootPath, allRootFileCount, allRootSizeBytes, allFilePaths, fileRecords };
+}
+
+export async function analyzeWorkspace(): Promise<DashboardData | undefined> {
+  const folders = vscode.workspace.workspaceFolders;
+  if (!folders || folders.length === 0) {
+    return undefined;
+  }
+
+  const isMultiRoot = folders.length > 1;
+  const folderResults: FolderData[] = [];
+  for (const folder of folders) {
+    const prefix = isMultiRoot ? `${folder.name}/` : "";
+    folderResults.push(await analyzeSingleFolder(folder, prefix));
+  }
+
+  const allFileRecords = folderResults.flatMap((r) => r.fileRecords);
+  const allFilePaths = folderResults.flatMap((r) => r.allFilePaths);
+  const totalSizeBytes = folderResults.reduce((sum, r) => sum + r.allRootSizeBytes, 0);
+  const totalFileCount = folderResults.reduce((sum, r) => sum + r.allRootFileCount, 0);
+  const analyzedSizeBytes = allFileRecords.reduce((sum, r) => sum + r.sizeBytes, 0);
   const folderTree = buildFolderTree(allFilePaths);
 
+  const config = vscode.workspace.getConfiguration("projectGraph");
   const configuredMain = config.get<string>("mainFile", "").trim().replace(/\\/g, "/");
-  const sortedByPriority = [...fileRecords].sort((a, b) => {
+  const sortedByPriority = [...allFileRecords].sort((a, b) => {
     const priorityDiff = mainFilePriority(b.path, b.extension) - mainFilePriority(a.path, a.extension);
     if (priorityDiff !== 0) {
       return priorityDiff;
@@ -390,26 +426,19 @@ export async function analyzeWorkspace(): Promise<DashboardData | undefined> {
     return b.sizeBytes - a.sizeBytes;
   });
   const mainFile =
-    (configuredMain && fileRecords.find((file) => file.path === configuredMain)?.path) ||
+    (configuredMain && allFileRecords.find((file) => file.path === configuredMain)?.path) ||
     sortedByPriority[0]?.path;
   const mainFileSizeMb = mainFile
-    ? fileRecords.find((file) => file.path === mainFile)?.sizeMb
+    ? allFileRecords.find((file) => file.path === mainFile)?.sizeMb
     : undefined;
 
-  const criticalFileCandidates = fileRecords
+  const criticalFileCandidates = allFileRecords
     .map((file) => {
       const inbound = file.importedBy.length;
       const outbound = file.imports.length;
       const entryBonus = file.path === mainFile ? 5 : 0;
       const score = inbound * 3 + outbound * 1.5 + Math.log10(file.sizeBytes + 1) + entryBonus;
-
-      return {
-        path: file.path,
-        inbound,
-        outbound,
-        sizeBytes: file.sizeBytes,
-        score
-      };
+      return { path: file.path, inbound, outbound, sizeBytes: file.sizeBytes, score };
     })
     .filter((item) => item.inbound > 0 || item.outbound > 0 || item.path === mainFile)
     .sort((a, b) => b.score - a.score || b.inbound - a.inbound || b.sizeBytes - a.sizeBytes);
@@ -417,40 +446,49 @@ export async function analyzeWorkspace(): Promise<DashboardData | undefined> {
   const criticalFiles = (
     criticalFileCandidates.length > 0
       ? criticalFileCandidates
-      : fileRecords
+      : allFileRecords
           .map((file) => ({ path: file.path, sizeBytes: file.sizeBytes }))
           .sort((a, b) => b.sizeBytes - a.sizeBytes)
   )
     .slice(0, 12)
     .map((item) => item.path);
 
-  const graphNodes = fileRecords.map((file) => ({
+  const graphNodes = allFileRecords.map((file) => ({
     id: file.path,
     label: path.basename(file.path),
     sizeMb: file.sizeMb
   }));
 
-  const graphLinks = fileRecords.flatMap((file) =>
-    file.imports.map((target) => ({
-      source: file.path,
-      target
-    }))
+  const graphLinks = allFileRecords.flatMap((file) =>
+    file.imports.map((target) => ({ source: file.path, target }))
   );
 
+  const workspaceFolders: WorkspaceFolderSummary[] | undefined = isMultiRoot
+    ? folderResults.map((r) => ({
+        name: r.folderName,
+        rootPath: r.rootPath,
+        totalFiles: r.allRootFileCount,
+        analyzedFiles: r.fileRecords.length,
+        totalSizeMb: bytesToMb(r.allRootSizeBytes),
+        analyzedSizeMb: bytesToMb(r.fileRecords.reduce((s, f) => s + f.sizeBytes, 0))
+      }))
+    : undefined;
+
   return {
-    workspaceName: folder.name,
-    rootPath,
+    workspaceName: isMultiRoot ? folders.map((f) => f.name).join(" + ") : folders[0].name,
+    rootPath: folders[0].uri.fsPath,
     generatedAt: new Date().toISOString(),
-    totalFiles: allRootFilePaths.length,
-    analyzedFiles: fileRecords.length,
-    totalSizeMb: bytesToMb(allRootSizeBytes),
+    totalFiles: totalFileCount,
+    analyzedFiles: allFileRecords.length,
+    totalSizeMb: bytesToMb(totalSizeBytes),
     analyzedSizeMb: bytesToMb(analyzedSizeBytes),
     mainFile,
     mainFileSizeMb,
     folderTree,
-    files: fileRecords.sort((a, b) => b.sizeBytes - a.sizeBytes),
+    files: allFileRecords.sort((a, b) => b.sizeBytes - a.sizeBytes),
     graphNodes,
     graphLinks,
-    criticalFiles
+    criticalFiles,
+    workspaceFolders
   };
 }

@@ -39,4 +39,15 @@ export interface DashboardData {
   graphNodes: GraphNode[];
   graphLinks: GraphLink[];
   criticalFiles: string[];
+  workspaceFolders?: WorkspaceFolderSummary[];
+}
+
+export interface WorkspaceFolderSummary {
+  name: string;
+  rootPath: string;
+  totalFiles: number;
+  analyzedFiles: number;
+  totalSizeMb: number;
+  analyzedSizeMb: number;
+  mainFile?: string;
 }
