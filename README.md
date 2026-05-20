@@ -52,7 +52,5 @@ See [LICENSE](LICENSE) for details.
 ---
 
 <p align="center">
-  <img src="icons/Icon-1.png" width="64" alt="Project Graph Logo" />
-  <br/>
-  <sub><i>Project Graph · built for VS Code</i></sub>
+  <img src="screenshots/Banner.png" alt="Project Graph" />
 </p>

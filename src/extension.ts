@@ -70,6 +70,58 @@ async function openOrRefreshDashboard(context: vscode.ExtensionContext): Promise
         } catch (err) {
           currentPanel.webview.postMessage({ type: "diffData", sha, addedLinks: [], removedLinks: [], error: String(err) });
         }
+
+      } else if (msg.type === "saveFile") {
+        const format   = String(msg.format   ?? "");
+        const content  = String(msg.content  ?? "");
+        const filename = String(msg.filename ?? "file");
+        const filterMap: Record<string, Record<string, string[]>> = {
+          "svg":  { "SVG Image":  ["svg"]  },
+          "png":  { "PNG Image":  ["png"]  },
+          "json": { "JSON File":  ["json"] },
+          "csv":  { "CSV File":   ["csv"]  }
+        };
+        const saveUri = await vscode.window.showSaveDialog({
+          defaultUri: vscode.Uri.joinPath(vscode.Uri.file(root), filename),
+          filters: filterMap[format] ?? { "All Files": ["*"] }
+        });
+        if (!saveUri) { return; }
+        const bytes = format === "png"
+          ? new Uint8Array(Buffer.from(content, "base64"))
+          : new Uint8Array(Buffer.from(content, "utf8"));
+        await vscode.workspace.fs.writeFile(saveUri, bytes);
+        vscode.window.showInformationMessage(`Saved: ${saveUri.fsPath}`);
+
+      } else if (msg.type === "loadSnapshot") {
+        const picked = await vscode.window.showOpenDialog({
+          canSelectMany: false,
+          filters: { "JSON Snapshot": ["json"] },
+          title: "Select Project Snapshot for Comparison"
+        });
+        if (!picked || picked.length === 0) { return; }
+        let snapshot: { files?: Array<{ path: string; imports?: string[] }> };
+        try {
+          const raw = await vscode.workspace.fs.readFile(picked[0]);
+          snapshot = JSON.parse(Buffer.from(raw).toString("utf8"));
+        } catch {
+          currentPanel!.webview.postMessage({ type: "snapshotError", error: "Could not read or parse the JSON file." });
+          return;
+        }
+        const snapshotFiles = snapshot.files ?? [];
+        const currentFiles  = currentData?.files ?? [];
+        const snpAdded:   Array<{ source: string; target: string }> = [];
+        const snpRemoved: Array<{ source: string; target: string }> = [];
+        const snapshotMap = new Map(
+          snapshotFiles.map((f) => [f.path, new Set(f.imports ?? [])] as [string, Set<string>])
+        );
+        for (const cur of currentFiles) {
+          const oldImps = snapshotMap.get(cur.path) ?? new Set<string>();
+          const curSet  = new Set(cur.imports);
+          for (const imp of curSet)  { if (!oldImps.has(imp)) { snpAdded.push({ source: cur.path, target: imp }); } }
+          for (const imp of oldImps) { if (!curSet.has(imp))  { snpRemoved.push({ source: cur.path, target: imp }); } }
+        }
+        const label = picked[0].fsPath.split(/[\\/]/).pop() ?? "snapshot";
+        currentPanel!.webview.postMessage({ type: "snapshotDiffData", label, addedLinks: snpAdded, removedLinks: snpRemoved });
       }
     }, undefined, context.subscriptions);
   }

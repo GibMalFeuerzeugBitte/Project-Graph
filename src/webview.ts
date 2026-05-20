@@ -277,6 +277,8 @@ export function getDashboardHtml(webview: vscode.Webview, data: DashboardData): 
       </div>
       <div id="git-panel" class="git-panel">
         <select id="git-commit-sel" class="git-commit-sel" disabled><option value="">Loading…</option></select>
+        <span style="color:var(--vscode-descriptionForeground);font-size:11px;flex-shrink:0">or</span>
+        <button id="git-load-snapshot-btn" class="export-btn" title="Compare current state with a previously exported JSON snapshot">Load JSON Snapshot…</button>
         <span id="git-status-txt" class="git-status-txt"></span>
         <span class="git-leg-add">● Added</span>
         <span class="git-leg-rem">● Removed</span>
@@ -879,7 +881,23 @@ export function getDashboardHtml(webview: vscode.Webview, data: DashboardData): 
       });
     });
 
-    /* ── SVG / PNG export ─────────────────────────── */
+    /* ── SVG / PNG / JSON / CSV export ─────────────── */
+    function postSaveFile(format, content, filename) {
+      if (vscodeApi) {
+        vscodeApi.postMessage({ type: "saveFile", format: format, content: content, filename: filename });
+      } else {
+        // fallback outside VS Code
+        const mimeMap = { svg: "image/svg+xml", json: "application/json", csv: "text/csv" };
+        const a = document.createElement("a");
+        if (format === "png") {
+          a.href = "data:image/png;base64," + content;
+        } else {
+          a.href = "data:" + (mimeMap[format] || "application/octet-stream") + ";charset=utf-8," + encodeURIComponent(content);
+        }
+        a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      }
+    }
     function resolveGraphSvg() {
       const clone = svg.cloneNode(true);
       clone.setAttribute("width", "860");
@@ -898,11 +916,7 @@ export function getDashboardHtml(webview: vscode.Webview, data: DashboardData): 
     const exportSvgBtn = document.getElementById("export-svg-btn");
     if (exportSvgBtn) {
       exportSvgBtn.addEventListener("click", function() {
-        const s = resolveGraphSvg();
-        const a = document.createElement("a");
-        a.href = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(s);
-        a.download = "project-graph.svg";
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        postSaveFile("svg", resolveGraphSvg(), "project-graph.svg");
       });
     }
     const exportPngBtn = document.getElementById("export-png-btn");
@@ -919,10 +933,8 @@ export function getDashboardHtml(webview: vscode.Webview, data: DashboardData): 
           ctx.fillRect(0, 0, 1720, 860);
           ctx.scale(2, 2);
           ctx.drawImage(img, 0, 0);
-          const a = document.createElement("a");
-          a.href = canvas.toDataURL("image/png");
-          a.download = "project-graph.png";
-          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          const dataUrl = canvas.toDataURL("image/png");
+          postSaveFile("png", dataUrl.split(",")[1] || "", "project-graph.png");
         };
         img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(s);
       });
@@ -937,11 +949,7 @@ export function getDashboardHtml(webview: vscode.Webview, data: DashboardData): 
             return { path: f.path, extension: f.extension, sizeMb: f.sizeMb, imports: f.imports, importedBy: f.importedBy };
           })
         };
-        const s = JSON.stringify(payload, null, 2);
-        const a = document.createElement("a");
-        a.href = "data:application/json;charset=utf-8," + encodeURIComponent(s);
-        a.download = "project-dependencies.json";
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        postSaveFile("json", JSON.stringify(payload, null, 2), "project-dependencies.json");
       });
     }
     const exportCsvBtn = document.getElementById("export-csv-btn");
@@ -953,11 +961,19 @@ export function getDashboardHtml(webview: vscode.Webview, data: DashboardData): 
             rows.push('"' + f.path.replace(/"/g, '""') + '","' + imp.replace(/"/g, '""') + '"');
           });
         });
-        const s = rows.join("\\n");
-        const a = document.createElement("a");
-        a.href = "data:text/csv;charset=utf-8," + encodeURIComponent(s);
-        a.download = "project-dependencies.csv";
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        postSaveFile("csv", rows.join("\\n"), "project-dependencies.csv");
+      });
+    }
+    /* ── git load snapshot ───────────────────────────── */
+    const gitLoadSnapshotBtn = document.getElementById("git-load-snapshot-btn");
+    if (gitLoadSnapshotBtn) {
+      gitLoadSnapshotBtn.addEventListener("click", function() {
+        if (vscodeApi) {
+          vscodeApi.postMessage({ type: "loadSnapshot" });
+          document.getElementById("git-status-txt").textContent = "Select a JSON snapshot file…";
+        } else {
+          document.getElementById("git-status-txt").textContent = "Not available outside VS Code";
+        }
       });
     }
     /* ── git commit select ───────────────────────────── */
@@ -994,6 +1010,14 @@ export function getDashboardHtml(webview: vscode.Webview, data: DashboardData): 
         diffData = msg;
         renderDiffGraph();
         statusEl.textContent = "\u25cf " + msg.addedLinks.length + " added  \u25cf " + msg.removedLinks.length + " removed";
+      } else if (msg.type === "snapshotDiffData") {
+        const statusEl = document.getElementById("git-status-txt");
+        if (graphMode !== "diff") return;
+        diffData = { sha: msg.label || "snapshot", addedLinks: msg.addedLinks || [], removedLinks: msg.removedLinks || [] };
+        renderDiffGraph();
+        statusEl.textContent = "\u25cf " + (msg.addedLinks || []).length + " added  \u25cf " + (msg.removedLinks || []).length + " removed  (\u2195 " + msg.label + ")";
+      } else if (msg.type === "snapshotError") {
+        document.getElementById("git-status-txt").textContent = "Error: " + (msg.error || "Unknown error");
       }
     });
     /* ── init ────────────────────────────────────────── */
